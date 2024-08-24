@@ -13,6 +13,7 @@ model User {
   password String
   role     String
   quizzes  Quiz[]
+  quizResults QuizResult[]
 }
 
 model Quiz {
@@ -22,6 +23,7 @@ model Quiz {
   creatorId   Int
   creator     User      @relation(fields: [creatorId], references: [id])
   questions   Question[]
+  results     QuizResult[]
 }
 
 model Question {
@@ -31,4 +33,13 @@ model Question {
   answer   String
   quizId   Int
   quiz     Quiz     @relation(fields: [quizId], references: [id])
+}
+
+model QuizResult {
+  id     Int   @id @default(autoincrement())
+  score  Int
+  userId Int
+  quizId Int
+  user   User  @relation(fields: [userId], references: [id])
+  quiz   Quiz  @relation(fields: [quizId], references: [id])
 }

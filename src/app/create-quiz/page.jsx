@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function CreateQuiz() {
   const [title, setTitle] = useState("");
@@ -33,6 +34,7 @@ export default function CreateQuiz() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const token = localStorage.getItem("token");
       const res = await fetch("/api/quizzes", {
@@ -47,9 +49,10 @@ export default function CreateQuiz() {
         router.push("/dashboard");
       } else {
         const data = await res.json();
-        setError(data.message);
+        setError(data.message || "Failed to create quiz");
       }
     } catch (error) {
+      console.error("Error creating quiz:", error);
       setError("An error occurred. Please try again.");
     }
   };
@@ -137,6 +140,12 @@ export default function CreateQuiz() {
             Create Quiz
           </button>
         </form>
+        <Link
+          href="/dashboard"
+          className="block mt-4 text-blue-500 hover:underline"
+        >
+          Back to Dashboard
+        </Link>
       </div>
     </div>
   );
