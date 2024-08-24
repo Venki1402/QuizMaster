@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -8,19 +8,10 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/signin");
-    } else {
-      fetchUserData(token);
-      fetchQuizzes(token);
-    }
-  }, []);
-
-  const fetchUserData = async (token) => {
+  const fetchUserData = useCallback(async (token) => {
     try {
       const response = await fetch("/api/user", {
         headers: {
@@ -31,18 +22,15 @@ export default function Dashboard() {
         const userData = await response.json();
         setUser(userData);
       } else {
-        // Token is invalid or expired
-        localStorage.removeItem("token");
-        router.push("/signin");
+        throw new Error("Failed to fetch user data");
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-    } finally {
-      setLoading(false);
+      setError("Failed to load user data. Please try signing in again.");
     }
-  };
+  }, []);
 
-  const fetchQuizzes = async (token) => {
+  const fetchQuizzes = useCallback(async (token) => {
     try {
       const response = await fetch("/api/quizzes", {
         headers: {
@@ -52,13 +40,26 @@ export default function Dashboard() {
       if (response.ok) {
         const quizzesData = await response.json();
         setQuizzes(quizzesData);
+      } else {
+        throw new Error("Failed to fetch quizzes");
       }
     } catch (error) {
       console.error("Error fetching quizzes:", error);
+      setError("Failed to load quizzes. Please try again later.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/signin");
+    } else {
+      fetchUserData(token);
+      fetchQuizzes(token);
+    }
+  }, [router, fetchUserData, fetchQuizzes]);
 
   const handleSignOut = () => {
     localStorage.removeItem("token");
@@ -71,6 +72,10 @@ export default function Dashboard() {
         Loading...
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="text-red-500 text-center">{error}</div>;
   }
 
   return (
@@ -90,9 +95,9 @@ export default function Dashboard() {
           <div>
             <h2 className="text-2xl mb-4">Available Quizzes</h2>
             {quizzes.length > 0 ? (
-              <ul>
+              <ul className="space-y-2">
                 {quizzes.map((quiz) => (
-                  <li key={quiz.id} className="mb-2">
+                  <li key={quiz.id} className="bg-white p-4 rounded shadow">
                     <Link
                       href={`/take-quiz/${quiz.id}`}
                       className="text-blue-500 hover:underline"
@@ -110,24 +115,35 @@ export default function Dashboard() {
 
         {user?.role === "INSTRUCTOR" && (
           <div>
-            <h2 className="text-2xl mb-4">Your Quizzes</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl">Your Quizzes</h2>
+              <Link
+                href="/create-quiz"
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                Create New Quiz
+              </Link>
+            </div>
             {quizzes.length > 0 ? (
-              <ul>
+              <ul className="space-y-2">
                 {quizzes.map((quiz) => (
-                  <li key={quiz.id} className="mb-2">
-                    {quiz.title}
+                  <li
+                    key={quiz.id}
+                    className="bg-white p-4 rounded shadow flex justify-between items-center"
+                  >
+                    <span>{quiz.title}</span>
+                    <Link
+                      href={`/edit-quiz/${quiz.id}`}
+                      className="text-blue-500 hover:underline"
+                    >
+                      Edit
+                    </Link>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p>You haven't created any quizzes yet.</p>
+              <p>You haven&apos;t created any quizzes yet.</p>
             )}
-            <Link
-              href="/create-quiz"
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Create New Quiz
-            </Link>
           </div>
         )}
       </div>

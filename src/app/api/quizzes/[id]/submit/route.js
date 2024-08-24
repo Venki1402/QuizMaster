@@ -1,3 +1,4 @@
+// File: src/app/api/quizzes/[id]/submit/route.js
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
@@ -17,6 +18,7 @@ export async function POST(request, { params }) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { answers } = await request.json();
+    console.log("Received answers:", answers); // Debug log
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: parseInt(params.id) },
@@ -29,27 +31,38 @@ export async function POST(request, { params }) {
 
     let score = 0;
     quiz.questions.forEach((question) => {
-      if (parseInt(question.answer) === answers[question.id]) {
+      if (answers[question.id] === parseInt(question.answer)) {
         score++;
       }
     });
 
-    const result = await prisma.quizResult.create({
-      data: {
-        score,
-        userId: decoded.userId,
-        quizId: quiz.id,
-      },
-    });
+    const totalQuestions = quiz.questions.length;
 
-    return NextResponse.json({ score, total: quiz.questions.length });
+    try {
+      const result = await prisma.quizResult.create({
+        data: {
+          score,
+          userId: decoded.userId,
+          quizId: parseInt(params.id),
+        },
+      });
+      console.log("Quiz result created:", result); // Debug log
+    } catch (prismaError) {
+      console.error("Error creating quiz result:", prismaError);
+      return NextResponse.json(
+        { message: `Error saving quiz result: ${prismaError.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ score, totalQuestions });
   } catch (error) {
-    console.error(error);
+    console.error("Server error:", error);
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: `Internal server error: ${error.message}` },
       { status: 500 }
     );
   } finally {
